@@ -18,6 +18,7 @@ class UsePaypal extends StatefulWidget {
   final String returnURL, cancelURL, note, clientId, secretKey;
   final List transactions;
   final bool sandboxMode;
+  final String? intent;
   const UsePaypal({
     Key? key,
     required this.onSuccess,
@@ -28,6 +29,7 @@ class UsePaypal extends StatefulWidget {
     required this.transactions,
     required this.clientId,
     required this.secretKey,
+    this.intent = 'sale',
     this.sandboxMode = false,
     this.note = '',
   }) : super(key: key);
@@ -52,7 +54,7 @@ class UsePaypalState extends State<UsePaypal> {
 
   Map getOrderParams() {
     Map<String, dynamic> temp = {
-      "intent": "sale",
+      "intent": widget.intent,
       "payer": {"payment_method": "paypal"},
       "transactions": widget.transactions,
       "note_to_payer": widget.note,
