@@ -49,44 +49,15 @@ class _MyHomePageState extends State<MyHomePage> {
                                 "EHHtTDjnmTZATYBPiGzZC_AZUfMpMAzj2VZUeqlFUrRJA_C0pQNCxDccB5qoRQSEdcOnnKQhycuOWdP9",
                             returnURL: "https://samplesite.com/return",
                             cancelURL: "https://samplesite.com/cancel",
-                            transactions: const [
+                            purchaseUnits: const [
                               {
-                                "amount": {
-                                  "total": '10.12',
-                                  "currency": "USD",
-                                  "details": {
-                                    "subtotal": '10.12',
-                                    "shipping": '0',
-                                    "shipping_discount": 0
+                                {
+                                  "reference_id":
+                                      "d9f80740-38f0-11e8-b467-0ed5f89f718b",
+                                  "amount": {
+                                    "currency_code": "USD",
+                                    "value": "100.00"
                                   }
-                                },
-                                "description":
-                                    "The payment transaction description.",
-                                // "payment_options": {
-                                //   "allowed_payment_method":
-                                //       "INSTANT_FUNDING_SOURCE"
-                                // },
-                                "item_list": {
-                                  "items": [
-                                    {
-                                      "name": "A demo product",
-                                      "quantity": 1,
-                                      "price": '10.12',
-                                      "currency": "USD"
-                                    }
-                                  ],
-
-                                  // shipping address is not required though
-                                  "shipping_address": {
-                                    "recipient_name": "Jane Foster",
-                                    "line1": "Travis County",
-                                    "line2": "",
-                                    "city": "Austin",
-                                    "country_code": "US",
-                                    "postal_code": "73301",
-                                    "phone": "+00000000",
-                                    "state": "Texas"
-                                  },
                                 }
                               }
                             ],

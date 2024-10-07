@@ -2,7 +2,6 @@ library flutter_paypal;
 
 import 'dart:core';
 import 'package:flutter/material.dart';
-import 'package:flutter_paypal/src/screens/complete_payment.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 // Import for Android features.
@@ -12,13 +11,25 @@ import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 import 'src/PaypalServices.dart';
 import 'src/errors/network_error.dart';
+import 'src/screens/complete_order.dart';
 
 class UsePaypal extends StatefulWidget {
   final Function onSuccess, onCancel, onError;
   final String returnURL, cancelURL, note, clientId, secretKey;
-  final List transactions;
+  // model purchaseUnits example: [{{"reference_id": "d9f80740-38f0-11e8-b467-0ed5f89f718b","amount": {"currency_code": "USD","value": "100.00"}}}]
+  final List purchaseUnits;
   final bool sandboxMode;
-  final String? intent;
+  final String? intent; // CAPTURE || AUTHORIZE
+  final String? brandName;
+  final String?
+      shippingPreference; // GET_FROM_FILE || NO_SHIPPING || SET_PROVIDED_ADDRESS
+  final String? landingPage; // LOGIN || GUEST_CHECKOUT || NO_PREFERENCE
+  final String? userAction;
+  final String?
+      paymentMethodPreference; // UNRESTRICTED || IMMEDIATE_PAYMENT_REQUIRED
+  final String? locale; // BCP 47-formatted locale code (e.g. en-US)
+  final bool onlyCreateOrder;
+
   const UsePaypal({
     Key? key,
     required this.onSuccess,
@@ -26,12 +37,19 @@ class UsePaypal extends StatefulWidget {
     required this.onCancel,
     required this.returnURL,
     required this.cancelURL,
-    required this.transactions,
     required this.clientId,
     required this.secretKey,
-    this.intent = 'sale',
+    this.intent = 'CAPTURE',
     this.sandboxMode = false,
     this.note = '',
+    this.brandName = '',
+    this.shippingPreference = 'GET_FROM_FILE',
+    this.landingPage = 'NO_PREFERENCE',
+    this.userAction = 'CONTINUE',
+    this.paymentMethodPreference = 'UNRESTRICTED',
+    this.locale = 'en-US',
+    this.purchaseUnits = const [],
+    this.onlyCreateOrder = false,
   }) : super(key: key);
 
   @override
@@ -51,22 +69,31 @@ class UsePaypalState extends State<UsePaypal> {
   bool loadingError = false;
   late PaypalServices services;
   int pressed = 0;
+  final Map<dynamic, dynamic> resultReqOrderData = {};
 
-  Map getOrderParams() {
+  Map getOrderData() {
     Map<String, dynamic> temp = {
       "intent": widget.intent,
-      "payer": {"payment_method": "paypal"},
-      "transactions": widget.transactions,
-      "note_to_payer": widget.note,
-      "redirect_urls": {
-        "return_url": widget.returnURL,
-        "cancel_url": widget.cancelURL
+      "purchase_units": widget.purchaseUnits,
+      "payment_source": {
+        'paypal': {
+          'experience_context': {
+            'payment_method_preference': widget.paymentMethodPreference,
+            'brand_name': widget.brandName,
+            'locale': widget.locale,
+            'landing_page': widget.landingPage,
+            'shipping_preference': widget.shippingPreference,
+            'user_action': widget.userAction,
+            "return_url": widget.returnURL,
+            "cancel_url": widget.cancelURL
+          },
+        },
       }
     };
     return temp;
   }
 
-  loadPayment() async {
+  loadOrder() async {
     setState(() {
       loading = true;
     });
@@ -74,19 +101,18 @@ class UsePaypalState extends State<UsePaypal> {
       Map getToken = await services.getAccessToken();
       if (getToken['token'] != null) {
         accessToken = getToken['token'];
-        final transactions = getOrderParams();
-        final res =
-            await services.createPaypalPayment(transactions, accessToken);
-        if (res["approvalUrl"] != null) {
+        final orderData = getOrderData();
+        final res = await services.createPaypalOrder(orderData, accessToken);
+        if (res["payerActionUrl"] != null) {
           setState(() {
-            checkoutUrl = res["approvalUrl"].toString();
-            navUrl = res["approvalUrl"].toString();
-            executeUrl = res["executeUrl"].toString();
+            resultReqOrderData.addAll(res);
+            executeUrl = res["selfUrl"];
             loading = false;
             pageLoading = false;
             loadingError = false;
           });
-        _controller.loadRequest(Uri.parse(checkoutUrl));
+          _controller
+              .loadRequest(Uri.parse(resultReqOrderData['payerActionUrl']));
         } else {
           widget.onError(res);
           setState(() {
@@ -128,7 +154,7 @@ class UsePaypalState extends State<UsePaypal> {
           : 'https://www.api.paypal.com';
     });
     // Enable hybrid composition.
-    loadPayment();
+    loadOrder();
 
     // #docregion platform_features
     late final PlatformWebViewControllerCreationParams params;
@@ -184,14 +210,18 @@ class UsePaypalState extends State<UsePaypal> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => CompletePayment(
-                        url: request.url,
-                        services: services,
-                        executeUrl: executeUrl,
-                        accessToken: accessToken,
-                        onSuccess: widget.onSuccess,
-                        onCancel: widget.onCancel,
-                        onError: widget.onError)),
+                  builder: (context) => CompleteOrder(
+                    url: request.url,
+                    services: services,
+                    executeUrl: executeUrl,
+                    accessToken: accessToken,
+                    onSuccess: widget.onSuccess,
+                    onCancel: widget.onCancel,
+                    onError: widget.onError,
+                    intent: widget.intent ?? 'CAPTURE',
+                    onlyCreateOrder: widget.onlyCreateOrder,
+                  ),
+                ),
               );
             }
             if (request.url.contains(widget.cancelURL)) {
@@ -314,7 +344,7 @@ class UsePaypalState extends State<UsePaypal> {
                           Expanded(
                             child: Center(
                               child: NetworkError(
-                                  loadData: loadPayment,
+                                  loadData: loadOrder,
                                   message: "Something went wrong,"),
                             ),
                           ),
